@@ -2,6 +2,12 @@
    Exposes window.AT. Needs the supabase-js CDN script + config.js loaded first. */
 (function () {
   var cfg = window.AT_CONFIG || {};
+  // Tidy common paste mistakes: spaces, quotes, trailing "/", or "/rest/v1", "/auth/v1" on the end.
+  if (cfg.SUPABASE_URL) {
+    cfg.SUPABASE_URL = String(cfg.SUPABASE_URL).trim()
+      .replace(/\/(rest|auth|storage)\/v1.*$/i, "").replace(/\/+$/, "");
+  }
+  if (cfg.SUPABASE_ANON_KEY) cfg.SUPABASE_ANON_KEY = String(cfg.SUPABASE_ANON_KEY).trim();
   var configured = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY &&
     cfg.SUPABASE_URL.indexOf("YOUR-PROJECT") === -1 && window.supabase);
 
