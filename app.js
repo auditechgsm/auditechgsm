@@ -88,7 +88,8 @@
     var initials = s.name.split(" ").slice(0, 2).map(function (w) { return w[0]; }).join("").toUpperCase();
     var p = Number(s.price), shown = window.AT ? AT.price(p) : p;
     var priceTxt = p > 0 ? shown + ' USD' + (shown < p ? ' <s style="opacity:.6">' + p + '</s>' : '') : 'Price on request';
-    return '<a class="svc" href="#" data-order="' + esc(s.id) + '"><div class="thumb">' + esc(initials) + '</div><div><div class="t">' + esc(s.name) + '</div>' +
+    var thumb = s.logo_url ? '<div class="thumb logo"><img src="' + esc(s.logo_url) + '" alt="" loading="lazy"></div>' : '<div class="thumb">' + esc(initials) + '</div>';
+    return '<a class="svc" href="#" data-order="' + esc(s.id) + '">' + thumb + '<div><div class="t">' + esc(s.name) + '</div>' +
       '<span class="badge b-price">' + priceTxt + '</span><span class="badge b-time">' + esc(s.delivery || "Instant") + '</span></div></a>';
   }
   // Fallback rows from services.js (used only if Supabase isn't configured / unreachable)
