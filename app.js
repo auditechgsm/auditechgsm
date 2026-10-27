@@ -159,6 +159,8 @@
     var slot = document.getElementById("authSlot");
     if (!slot || !window.AT || !AT.configured) return;
     var p = AT.profile;
+    var cur = document.querySelector("select.cur");
+    if (cur) cur.style.display = p ? "none" : "";   // hide currency selector while logged in
     if (!p) { slot.innerHTML = '<button class="btn btn-primary" data-open="auth">Login / Register</button>'; return; }
     slot.innerHTML = '<span class="acct"><a class="bal" href="add-credit.html" title="Add credit">$' + AT.money(p.balance) + ' +</a>' +
       '<a class="btn btn-ghost" href="account.html">Account</a>' +
