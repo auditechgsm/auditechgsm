@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AUDITECH GSM - Digital GSM Store</title>
+<meta name="description" content="Tool rents, IMEI services, activations, MDM files and anti-crack services for Kenya and beyond.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="hero">
+  <div class="container">
+    <h1>Your Digital GSM Store</h1>
+    <p>Tool rents, IMEI services, activations, MDM files and anti-crack services. Fast delivery for technicians in Kenya and beyond.</p>
+    <div class="row">
+      <a class="btn btn-primary" href="tool-rents.html">Browse Services</a>
+      <button class="btn btn-ghost" data-open="welcome">How to Add Credit</button>
+    </div>
+    <form class="search" id="searchForm" style="margin-top:20px">
+      <input name="q" placeholder="Search services, e.g. Unlock Tool, FRP..." aria-label="Search services">
+      <button class="btn btn-primary">Search</button>
+    </form>
+  </div>
+</div>
+
+<main class="container">
+  <section class="block">
+    <h2>Categories</h2>
+    <div class="body cats">
+      <a class="cat" href="tool-rents.html"><span class="ic">🛠️</span>Tool Rents &amp; Remote<small>Hourly &amp; daily rentals</small></a>
+      <a class="cat" href="imei.html"><span class="ic">📱</span>IMEI Service<small>Unlock, FRP, checks</small></a>
+      <a class="cat" href="activation.html"><span class="ic">⚡</span>Activation &amp; Credits<small>Licences &amp; refills</small></a>
+      <a class="cat" href="mdm.html"><span class="ic">🔒</span>MDM Files<small>Links and files</small></a>
+      <a class="cat" href="anti-crack.html"><span class="ic">🛡️</span>Anti Crack<small>SPD &amp; MTK</small></a>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Recent Added</h2>
+    <div class="body grid" id="recent"></div>
+  </section>
+
+  <section class="block">
+    <h2>Tools We Support</h2>
+    <div class="body sellers">
+      <div class="seller">Unlock Tool</div><div class="seller">DFT Pro</div><div class="seller">Android Multi Tool</div><div class="seller">Hydra Tool</div>
+      <div class="seller">Chimera Tool</div><div class="seller">iRemoval Pro</div><div class="seller">TFM Tool Pro</div><div class="seller">Phoenix Service Tool</div>
+    </div>
+  </section>
+</main>
+
+<div id="site-footer"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="services.js"></script>
+<script src="backend.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

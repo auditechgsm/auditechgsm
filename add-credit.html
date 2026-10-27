@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add Credit - AUDITECH GSM</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="site-header"></div>
+<div class="pagehead"><div class="container">
+  <div class="crumb"><a href="index.html">Home</a> / Add Credit</div>
+  <h1>Add Credit</h1>
+  <p>Pay with any method below, then upload your payment screenshot. Credit is added after confirmation.</p>
+</div></div>
+<main class="container">
+  <div id="gate" class="panel" style="display:none">Please <a href="#" data-open="auth" style="text-decoration:underline;font-weight:700">log in or create an account</a> to add credit.</div>
+
+  <div id="content" style="display:none">
+    <div class="panel payinfo">
+      <h2>1. Pay using one of these</h2>
+      <div class="pay"><b>🟡 Binance Pay</b><br>Binance ID: <b>775300013</b><br>Name: <b>Alphatech1</b></div>
+      <div class="pay"><b>🟢 M-Pesa Till Number</b><br>Till: <b>8248090</b><br>Name: <b>Audryans Cyber</b></div>
+      <div class="pay"><b>🟢 M-Pesa Send Money</b><br>Number: <b>+254 799 330 764</b><br>Name: <b>Brian Mboga</b></div>
+    </div>
+
+    <div class="panel">
+      <h2>2. Upload your proof of payment</h2>
+      <form class="form" id="payForm">
+        <div class="row2">
+          <div><label>Payment method</label>
+            <select name="method" required>
+              <option value="binance">Binance Pay</option>
+              <option value="mpesa_till">M-Pesa Till</option>
+              <option value="mpesa_send">M-Pesa Send Money</option>
+              <option value="other">Other</option>
+            </select></div>
+          <div><label>Currency</label>
+            <select name="currency"><option>USD</option><option>KES</option><option>UGX</option><option>TZS</option><option>NGN</option><option>ZAR</option></select></div>
+        </div>
+        <div class="row2">
+          <div><label>Amount you paid</label><input name="amount" type="number" step="0.01" min="0.01" required></div>
+          <div><label>Transaction ID / M-Pesa code (optional)</label><input name="reference" maxlength="80"></div>
+        </div>
+        <label>Screenshot of payment (JPG, PNG, WEBP or PDF, max 5 MB)</label>
+        <input name="proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required>
+        <div class="msg" id="payMsg"></div>
+        <button class="btn btn-primary" id="payBtn" style="margin-top:14px">Submit proof</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>My submitted payments</h2>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>#</th><th>Date</th><th>Method</th><th>Paid</th><th>Status</th><th>Credited (USD)</th><th>Note</th></tr></thead>
+      <tbody id="payRows"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
+    </div>
+  </div>
+</main>
+<div id="site-footer"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="services.js"></script>
+<script src="backend.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  var MAX = 5 * 1024 * 1024, OK = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+  var METHODS = { binance: "Binance Pay", mpesa_till: "M-Pesa Till", mpesa_send: "M-Pesa Send", other: "Other" };
+  var gate = document.getElementById("gate"), content = document.getElementById("content");
+
+  function loadPayments() {
+    AT.sb.from("payments").select("*").order("created_at", { ascending: false }).limit(50).then(function (r) {
+      var tb = document.getElementById("payRows");
+      if (r.error) { tb.innerHTML = '<tr><td colspan="7">' + AT.esc(r.error.message) + '</td></tr>'; return; }
+      tb.innerHTML = r.data.length ? r.data.map(function (p) {
+        return '<tr><td>' + p.id + '</td><td>' + new Date(p.created_at).toLocaleString() + '</td><td>' + AT.esc(METHODS[p.method] || p.method) +
+          '</td><td>' + AT.money(p.amount_claimed) + ' ' + AT.esc(p.currency) + '</td><td><span class="st st-' + p.status + '">' + p.status +
+          '</span></td><td>' + (p.credited_amount != null ? AT.money(p.credited_amount) : '-') + '</td><td>' + AT.esc(p.admin_note || '') + '</td></tr>';
+      }).join("") : '<tr><td colspan="7">Nothing submitted yet.</td></tr>';
+    });
+  }
+
+  function show() {
+    if (!AT.configured) { gate.style.display = "block"; gate.textContent = "The backend is not connected yet. Add your Supabase keys in config.js."; return; }
+    var on = !!AT.profile;
+    gate.style.display = on ? "none" : "block";
+    content.style.display = on ? "block" : "none";
+    if (on) loadPayments();
+  }
+  AT.ready.then(show); AT.onChange(show);
+
+  document.getElementById("payForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = e.target, msg = document.getElementById("payMsg"), btn = document.getElementById("payBtn");
+    var file = f.proof.files[0];
+    function say(t, ok) { msg.className = "msg" + (ok ? " ok" : ""); msg.textContent = t; }
+    if (!file) return say("Please choose your screenshot.");
+    if (OK.indexOf(file.type) === -1) return say("Only JPG, PNG, WEBP or PDF files are allowed.");
+    if (file.size > MAX) return say("File is too large (max 5 MB).");
+    btn.disabled = true; say("Uploading…", true);
+
+    var ext = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" })[file.type];
+    var path = AT.profile.id + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "." + ext;
+
+    AT.sb.storage.from("proofs").upload(path, file, { contentType: file.type, upsert: false }).then(function (u) {
+      if (u.error) throw u.error;
+      return AT.sb.from("payments").insert({
+        user_id: AT.profile.id, method: f.method.value, amount_claimed: Number(f.amount.value),
+        currency: f.currency.value, reference: f.reference.value.trim() || null, proof_path: path
+      }).then(function (r) {
+        if (r.error) { AT.sb.storage.from("proofs").remove([path]); throw r.error; }
+      });
+    }).then(function () {
+      f.reset(); btn.disabled = false;
+      say("✅ Submitted. We'll review it and add your credit shortly.", true);
+      loadPayments();
+    }).catch(function (err) { btn.disabled = false; say(err.message || "Upload failed. Try again."); });
+  });
+})();
+</script>
+</body>
+</html>

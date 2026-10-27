@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Admin - AUDITECH GSM</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body{background:var(--bg)}
+  .atop{background:var(--dark);color:#fff;padding:12px 0}
+  .atop .container{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .atop .logo{color:#fff}
+  .tabs{display:flex;gap:4px;flex-wrap:wrap;margin:18px 0 0}
+  .tabs button{border:0;background:#e2e8ef;padding:10px 16px;border-radius:6px 6px 0 0;font-weight:700;cursor:pointer;font-size:14px}
+  .tabs button.on{background:#fff;color:var(--brand-dark);box-shadow:0 -2px 0 var(--brand) inset}
+  .tabs .n{background:#dc2626;color:#fff;border-radius:10px;font-size:11px;padding:1px 7px;margin-left:6px}
+  .tool{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+  .tool input,.tool select{padding:8px;border:1px solid var(--line);border-radius:6px;font-size:14px}
+  .tool input[type=search]{min-width:220px}
+  .btn-sm{padding:5px 10px;font-size:12px}
+  .btn-red{background:#dc2626;color:#fff}.btn-red:hover{background:#b91c1c}
+  .modal .authbox{max-height:90vh;overflow:auto}
+  .wide{max-width:640px!important}
+  #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#0b1220;color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;z-index:300;display:none;max-width:90vw}
+  #toast.err{background:#b91c1c}
+  .proofimg{max-width:100%;max-height:60vh;display:block;margin:8px auto;border:1px solid var(--line)}
+  .kv{font-size:13px;margin:4px 0}.kv b{display:inline-block;min-width:110px;color:var(--muted)}
+  .pre{white-space:pre-wrap;background:#f1f5f9;border-radius:6px;padding:8px;font-size:13px}
+  .loginwrap{max-width:380px;margin:60px auto}
+  .muted{color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginView" class="container" style="display:none">
+  <div class="loginwrap panel">
+    <div class="logo" style="margin-bottom:14px">AUDI<span>TECH</span> GSM &middot; Admin</div>
+    <form class="form" id="loginForm">
+      <label>Admin email</label><input name="email" type="email" required autocomplete="username">
+      <label>Password</label><input name="password" type="password" required autocomplete="current-password">
+      <div class="msg" id="loginMsg"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:16px">Log in</button>
+    </form>
+    <p class="muted" style="margin-top:14px"><a href="index.html" style="text-decoration:underline">&larr; Back to site</a></p>
+  </div>
+</div>
+
+<!-- ============ DASHBOARD ============ -->
+<div id="appView" style="display:none">
+  <div class="atop"><div class="container">
+    <span class="logo">AUDI<span>TECH</span> GSM &middot; Admin</span>
+    <span style="flex:1"></span>
+    <span id="adminEmail" class="muted" style="color:#9fc0d3"></span>
+    <a class="btn btn-ghost btn-sm" href="index.html">View site</a>
+    <button class="btn btn-primary btn-sm" id="logout">Logout</button>
+  </div></div>
+
+  <div class="container">
+    <div class="tabs" id="tabs">
+      <button data-tab="payments" class="on">Payments <span class="n" id="nPay" style="display:none"></span></button>
+      <button data-tab="orders">Orders <span class="n" id="nOrd" style="display:none"></span></button>
+      <button data-tab="services">Services</button>
+      <button data-tab="members">Members</button>
+    </div>
+
+    <!-- Payments -->
+    <section class="panel" id="tab-payments" style="margin-top:0;border-top-left-radius:0">
+      <h2>Payment proofs</h2>
+      <div class="tool">
+        <select id="payFilter"><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="">All</option></select>
+        <button class="btn btn-ghost btn-sm" id="payReload">Refresh</button>
+      </div>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>#</th><th>Date</th><th>Member</th><th>Method</th><th>Claimed</th><th>Reference</th><th>Status</th><th></th></tr></thead>
+      <tbody id="payRows"></tbody></table></div>
+    </section>
+
+    <!-- Orders -->
+    <section class="panel" id="tab-orders" style="display:none;margin-top:0;border-top-left-radius:0">
+      <h2>Orders</h2>
+      <div class="tool">
+        <select id="ordFilter"><option value="">All</option><option value="pending" selected>Pending</option><option value="processing">Processing</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="rejected">Rejected</option></select>
+        <input type="search" id="ordSearch" placeholder="Search id, member, service...">
+        <button class="btn btn-ghost btn-sm" id="ordReload">Refresh</button>
+      </div>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>#</th><th>Date</th><th>Member</th><th>Service</th><th>Price</th><th>Status</th><th></th></tr></thead>
+      <tbody id="ordRows"></tbody></table></div>
+    </section>
+
+    <!-- Services -->
+    <section class="panel" id="tab-services" style="display:none;margin-top:0;border-top-left-radius:0">
+      <h2>Services</h2>
+      <div class="tool">
+        <select id="svcCat"><option value="">All categories</option><option value="rent">Tool Rents</option><option value="imei">IMEI Service</option><option value="activation">Activation &amp; Credits</option><option value="mdm">MDM Files</option><option value="anticrack">Anti Crack</option></select>
+        <input type="search" id="svcSearch" placeholder="Search services...">
+        <button class="btn btn-primary btn-sm" id="svcNew">+ Add service</button>
+      </div>
+      <div class="muted" id="svcCount" style="margin-bottom:8px"></div>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>Name</th><th>Category</th><th>Price (USD)</th><th>Delivery</th><th>Live</th><th></th></tr></thead>
+      <tbody id="svcRows"></tbody></table></div>
+    </section>
+
+    <!-- Members -->
+    <section class="panel" id="tab-members" style="display:none;margin-top:0;border-top-left-radius:0">
+      <h2>Members</h2>
+      <div class="tool">
+        <input type="search" id="memSearch" placeholder="Search name, email, phone...">
+        <button class="btn btn-ghost btn-sm" id="memReload">Refresh</button>
+      </div>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>Member</th><th>Phone</th><th>Tier</th><th>Balance</th><th>Joined</th><th></th></tr></thead>
+      <tbody id="memRows"></tbody></table></div>
+    </section>
+  </div>
+</div>
+
+<!-- Generic modal -->
+<div class="modal" id="m"><div class="authbox wide"><button class="x" data-close>×</button><div id="mBody"></div></div></div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="backend.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = AT.esc, money = AT.money;
+  var CATS = { rent: "Tool Rents", imei: "IMEI", activation: "Activation", mdm: "MDM", anticrack: "Anti Crack" };
+  var METHODS = { binance: "Binance Pay", mpesa_till: "M-Pesa Till", mpesa_send: "M-Pesa Send", other: "Other" };
+  var DATA = { pay: [], ord: [], svc: [], mem: [] };
+  var loaded = {};
+
+  // ---------- helpers ----------
+  var tt;
+  function toast(msg, bad) {
+    var t = $("toast"); t.textContent = msg; t.className = bad ? "err" : ""; t.style.display = "block";
+    clearTimeout(tt); tt = setTimeout(function () { t.style.display = "none"; }, 4000);
+  }
+  function openModal(html) { $("mBody").innerHTML = html; $("m").classList.add("open"); }
+  function closeModal() { $("m").classList.remove("open"); }
+  function when(d) { return new Date(d).toLocaleString(); }
+  function who(p) { return p ? esc(p.full_name || "") + '<br><span class="muted">' + esc(p.email) + '</span>' : "-"; }
+  function fail(r) { if (r && r.error) { toast(r.error.message, true); return true; } return false; }
+  function byId(arr, id) { for (var i = 0; i < arr.length; i++) if (String(arr[i].id) === String(id)) return arr[i]; }
+
+  document.addEventListener("click", function (e) {
+    if (e.target.closest("[data-close]") || e.target === $("m")) closeModal();
+  });
+
+  if (!AT.configured) {
+    $("loginView").style.display = "block";
+    $("loginMsg").textContent = "Backend not connected. Fill in config.js with your Supabase URL and anon key.";
+    $("loginForm").querySelector("button").disabled = true;
+    return;
+  }
+
+  // ---------- auth ----------
+  function route() {
+    var p = AT.profile;
+    if (p && p.is_admin) {
+      $("loginView").style.display = "none"; $("appView").style.display = "block";
+      $("adminEmail").textContent = p.email;
+      if (!loaded.init) { loaded.init = true; loadPayments(); loadOrders(); loadServices(); loadMembers(); }
+    } else {
+      $("appView").style.display = "none"; $("loginView").style.display = "block";
+      loaded = {};
+    }
+  }
+  AT.ready.then(route); AT.onChange(route);
+
+  $("loginForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = e.target, m = $("loginMsg"); m.className = "msg ok"; m.textContent = "Checking…";
+    AT.signIn(f.email.value.trim(), f.password.value).then(function (r) {
+      if (r.error) { m.className = "msg"; m.textContent = r.error.message; return; }
+      return AT.refreshProfile().then(function (p) {
+        if (!p || !p.is_admin) { m.className = "msg"; m.textContent = "This account is not an admin."; return AT.signOut(); }
+        f.reset(); m.textContent = ""; route();
+      });
+    });
+  });
+  $("logout").addEventListener("click", function () { AT.signOut(); });
+
+  // ---------- tabs ----------
+  $("tabs").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-tab]"); if (!b) return;
+    [].forEach.call($("tabs").children, function (x) { x.classList.toggle("on", x === b); });
+    ["payments", "orders", "services", "members"].forEach(function (t) {
+      $("tab-" + t).style.display = t === b.getAttribute("data-tab") ? "block" : "none";
+    });
+  });
+
+  // ================= PAYMENTS =================
+  function loadPayments() {
+    var q = AT.sb.from("payments").select("*, profiles!payments_user_id_fkey(email, full_name, balance)").order("created_at", { ascending: false }).limit(300);
+    if ($("payFilter").value) q = q.eq("status", $("payFilter").value);
+    q.then(function (r) {
+      if (fail(r)) return;
+      DATA.pay = r.data;
+      $("payRows").innerHTML = r.data.length ? r.data.map(function (p) {
+        return '<tr><td>' + p.id + '</td><td>' + when(p.created_at) + '</td><td>' + who(p.profiles) + '</td><td>' + esc(METHODS[p.method] || p.method) +
+          '</td><td>' + money(p.amount_claimed) + ' ' + esc(p.currency) + '</td><td>' + esc(p.reference || "") +
+          '</td><td><span class="st st-' + p.status + '">' + p.status + '</span></td><td><button class="btn btn-primary btn-sm" data-pay="' + p.id + '">' +
+          (p.status === "pending" ? "Review" : "View") + '</button></td></tr>';
+      }).join("") : '<tr><td colspan="8">Nothing here.</td></tr>';
+    });
+    AT.sb.from("payments").select("id", { count: "exact", head: true }).eq("status", "pending").then(function (r) {
+      var n = $("nPay"); n.textContent = r.count || 0; n.style.display = r.count ? "inline" : "none";
+    });
+  }
+  $("payFilter").addEventListener("change", loadPayments);
+  $("payReload").addEventListener("click", loadPayments);
+
+  function reviewModal(p) {
+    var pending = p.status === "pending";
+    openModal('<h3 style="margin-top:0">Payment #' + p.id + '</h3>' +
+      '<div class="kv"><b>Member</b>' + esc(p.profiles && p.profiles.email) + ' (' + esc((p.profiles && p.profiles.full_name) || "-") + ')</div>' +
+      '<div class="kv"><b>Current balance</b>' + money(p.profiles && p.profiles.balance) + ' USD</div>' +
+      '<div class="kv"><b>Method</b>' + esc(METHODS[p.method] || p.method) + '</div>' +
+      '<div class="kv"><b>Member says paid</b>' + money(p.amount_claimed) + ' ' + esc(p.currency) + '</div>' +
+      '<div class="kv"><b>Reference</b>' + esc(p.reference || "-") + '</div>' +
+      '<div class="kv"><b>Submitted</b>' + when(p.created_at) + '</div>' +
+      '<div id="proofBox" class="muted" style="margin:10px 0">Loading proof…</div>' +
+      (pending ?
+        '<form class="form" id="reviewForm"><label>Credit to add (USD)</label>' +
+        '<input name="credit" type="number" step="0.01" min="0.01" value="' + (p.currency === "USD" ? esc(p.amount_claimed) : "") + '" placeholder="e.g. 10.00">' +
+        '<label>Note to member (optional)</label><input name="note" maxlength="500">' +
+        '<div style="display:flex;gap:10px;margin-top:16px">' +
+        '<button type="button" class="btn btn-primary" id="approveBtn" style="flex:1">Approve &amp; add credit</button>' +
+        '<button type="button" class="btn btn-red" id="rejectBtn" style="flex:1">Reject</button></div></form>'
+        : '<div class="kv"><b>Status</b>' + esc(p.status) + '</div><div class="kv"><b>Credited</b>' + (p.credited_amount != null ? money(p.credited_amount) + ' USD' : '-') +
+          '</div><div class="kv"><b>Note</b>' + esc(p.admin_note || "-") + '</div>'));
+
+    AT.sb.storage.from("proofs").createSignedUrl(p.proof_path, 600).then(function (r) {
+      var box = $("proofBox"); if (!box) return;
+      if (r.error) { box.textContent = "Could not load proof: " + r.error.message; return; }
+      var url = r.data.signedUrl;
+      box.innerHTML = /\.pdf$/i.test(p.proof_path)
+        ? '<a class="btn btn-ghost" target="_blank" rel="noopener" href="' + esc(url) + '">Open PDF proof</a>'
+        : '<a target="_blank" rel="noopener" href="' + esc(url) + '"><img class="proofimg" alt="Payment proof" src="' + esc(url) + '"></a><div class="muted" style="text-align:center">Click image to open full size</div>';
+    });
+
+    if (pending) {
+      function go(approve) {
+        var f = $("reviewForm"), credit = Number(f.credit.value);
+        if (approve && !(credit > 0)) { toast("Enter the USD amount to credit.", true); return; }
+        if (approve && !confirm("Add " + money(credit) + " USD to " + (p.profiles && p.profiles.email) + "?")) return;
+        if (!approve && !confirm("Reject this payment?")) return;
+        AT.sb.rpc("admin_review_payment", { p_payment: p.id, p_approve: approve, p_credit: approve ? credit : null, p_note: f.note.value.trim() || null }).then(function (r) {
+          if (fail(r)) return;
+          toast(approve ? "Credit added." : "Payment rejected."); closeModal(); loadPayments(); loadMembers();
+        });
+      }
+      $("approveBtn").addEventListener("click", function () { go(true); });
+      $("rejectBtn").addEventListener("click", function () { go(false); });
+    }
+  }
+  $("payRows").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-pay]"); if (b) reviewModal(byId(DATA.pay, b.getAttribute("data-pay")));
+  });
+
+  // ================= ORDERS =================
+  function loadOrders() {
+    var q = AT.sb.from("orders").select("*, profiles(email, full_name)").order("created_at", { ascending: false }).limit(500);
+    if ($("ordFilter").value) q = q.eq("status", $("ordFilter").value);
+    q.then(function (r) {
+      if (fail(r)) return;
+      DATA.ord = r.data; drawOrders();
+    });
+    AT.sb.from("orders").select("id", { count: "exact", head: true }).eq("status", "pending").then(function (r) {
+      var n = $("nOrd"); n.textContent = r.count || 0; n.style.display = r.count ? "inline" : "none";
+    });
+  }
+  function drawOrders() {
+    var s = $("ordSearch").value.trim().toLowerCase();
+    var rows = DATA.ord.filter(function (o) {
+      if (!s) return true;
+      return (o.id + " " + o.service_name + " " + ((o.profiles && o.profiles.email) || "") + " " + ((o.profiles && o.profiles.full_name) || "")).toLowerCase().indexOf(s) > -1;
+    });
+    $("ordRows").innerHTML = rows.length ? rows.map(function (o) {
+      return '<tr><td>' + o.id + '</td><td>' + when(o.created_at) + '</td><td>' + who(o.profiles) + '</td><td>' + esc(o.service_name) +
+        '</td><td>' + money(o.price) + '</td><td><span class="st st-' + o.status + '">' + o.status + '</span></td><td><button class="btn btn-primary btn-sm" data-ord="' + o.id + '">Open</button></td></tr>';
+    }).join("") : '<tr><td colspan="7">Nothing here.</td></tr>';
+  }
+  $("ordFilter").addEventListener("change", loadOrders);
+  $("ordReload").addEventListener("click", loadOrders);
+  $("ordSearch").addEventListener("input", drawOrders);
+
+  $("ordRows").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-ord]"); if (!b) return;
+    var o = byId(DATA.ord, b.getAttribute("data-ord"));
+    var locked = o.status === "cancelled" || o.status === "rejected";
+    openModal('<h3 style="margin-top:0">Order #' + o.id + '</h3>' +
+      '<div class="kv"><b>Member</b>' + esc(o.profiles && o.profiles.email) + ' (' + esc((o.profiles && o.profiles.full_name) || "-") + ')</div>' +
+      '<div class="kv"><b>Service</b>' + esc(o.service_name) + '</div>' +
+      '<div class="kv"><b>Charged</b>' + money(o.price) + ' USD</div>' +
+      '<div class="kv"><b>Placed</b>' + when(o.created_at) + '</div>' +
+      '<div class="kv"><b>Member details</b></div><div class="pre">' + esc(o.details || "(none)") + '</div>' +
+      (locked ? '<p class="muted">Status: ' + esc(o.status) + ' - the member was refunded and the order is closed.</p><div class="kv"><b>Response</b></div><div class="pre">' + esc(o.admin_response || "-") + '</div>' :
+      '<form class="form" id="ordForm"><label>Status</label><select name="status">' +
+      ["pending", "processing", "completed", "cancelled", "rejected"].map(function (s) { return '<option value="' + s + '"' + (s === o.status ? " selected" : "") + '>' + s + '</option>'; }).join("") +
+      '</select><p class="muted" style="margin:4px 0 0">Cancelled / rejected automatically refunds ' + money(o.price) + ' USD to the member.</p>' +
+      '<label>Response to member (code, link, reason...)</label><textarea name="resp" rows="4" maxlength="4000">' + esc(o.admin_response || "") + '</textarea>' +
+      '<button class="btn btn-primary" style="width:100%;margin-top:14px">Save</button></form>'));
+    var f = $("ordForm");
+    if (f) f.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var st = f.status.value;
+      if ((st === "cancelled" || st === "rejected") && !confirm("This refunds " + money(o.price) + " USD to the member and cannot be undone. Continue?")) return;
+      AT.sb.rpc("admin_update_order", { p_order: o.id, p_status: st, p_response: f.resp.value.trim() || null }).then(function (r) {
+        if (fail(r)) return; toast("Order updated."); closeModal(); loadOrders(); loadMembers();
+      });
+    });
+  });
+
+  // ================= SERVICES =================
+  function loadServices() {
+    AT.loadServices(true).then(function (r) { if (fail(r)) return; DATA.svc = r.data; drawServices(); });
+  }
+  function drawServices() {
+    var c = $("svcCat").value, s = $("svcSearch").value.trim().toLowerCase();
+    var rows = DATA.svc.filter(function (x) { return (!c || x.category === c) && (!s || x.name.toLowerCase().indexOf(s) > -1); });
+    var cap = 300, shown = rows.slice(0, cap);
+    $("svcCount").textContent = rows.length + " service(s)" + (rows.length > cap ? " - showing first " + cap + ", use search to narrow" : "");
+    $("svcRows").innerHTML = shown.length ? shown.map(function (x) {
+      return '<tr><td>' + esc(x.name) + '</td><td>' + esc(CATS[x.category] || x.category) + '</td><td>' + (Number(x.price) > 0 ? money(x.price) : '<span class="muted">on request</span>') +
+        '</td><td>' + esc(x.delivery) + '</td><td><input type="checkbox" data-toggle="' + x.id + '"' + (x.active ? " checked" : "") + '></td>' +
+        '<td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-edit="' + x.id + '">Edit</button> <button class="btn btn-red btn-sm" data-del="' + x.id + '">Delete</button></td></tr>';
+    }).join("") : '<tr><td colspan="6">No services.</td></tr>';
+  }
+  $("svcCat").addEventListener("change", drawServices);
+  $("svcSearch").addEventListener("input", drawServices);
+
+  function svcForm(x) {
+    var isNew = !x; x = x || { category: $("svcCat").value || "rent", name: "", price: 0, delivery: "Instant", active: true };
+    openModal('<h3 style="margin-top:0">' + (isNew ? "Add service" : "Edit service") + '</h3><form class="form" id="svcForm">' +
+      '<label>Name</label><input name="name" required maxlength="300" value="' + esc(x.name) + '">' +
+      '<div class="row2"><div><label>Category</label><select name="category">' +
+      Object.keys(CATS).map(function (k) { return '<option value="' + k + '"' + (k === x.category ? " selected" : "") + '>' + CATS[k] + '</option>'; }).join("") + '</select></div>' +
+      '<div><label>Price (USD, 0 = on request)</label><input name="price" type="number" step="0.01" min="0" required value="' + esc(x.price) + '"></div></div>' +
+      '<label>Delivery time</label><input name="delivery" maxlength="60" value="' + esc(x.delivery) + '">' +
+      '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="active" style="width:auto"' + (x.active ? " checked" : "") + '> Visible on the site</label>' +
+      '<button class="btn btn-primary" style="width:100%;margin-top:14px">Save</button></form>');
+    $("svcForm").addEventListener("submit", function (e) {
+      e.preventDefault(); var f = e.target;
+      var row = { name: f.name.value.trim(), category: f.category.value, price: Number(f.price.value), delivery: f.delivery.value.trim() || "Instant", active: f.active.checked };
+      var job = isNew ? AT.sb.from("services").insert(row) : AT.sb.from("services").update(row).eq("id", x.id);
+      job.then(function (r) { if (fail(r)) return; toast("Saved."); closeModal(); loadServices(); });
+    });
+  }
+  $("svcNew").addEventListener("click", function () { svcForm(null); });
+  $("svcRows").addEventListener("click", function (e) {
+    var ed = e.target.closest("[data-edit]"), del = e.target.closest("[data-del]");
+    if (ed) svcForm(byId(DATA.svc, ed.getAttribute("data-edit")));
+    if (del) {
+      var x = byId(DATA.svc, del.getAttribute("data-del"));
+      if (!confirm('Delete "' + x.name + '"? Past orders keep their saved name. (Tip: untick "Live" to just hide it.)')) return;
+      AT.sb.from("services").delete().eq("id", x.id).then(function (r) { if (fail(r)) return; toast("Deleted."); loadServices(); });
+    }
+  });
+  $("svcRows").addEventListener("change", function (e) {
+    var t = e.target.closest("[data-toggle]"); if (!t) return;
+    AT.sb.from("services").update({ active: t.checked }).eq("id", t.getAttribute("data-toggle")).then(function (r) {
+      if (fail(r)) { t.checked = !t.checked; return; }
+      byId(DATA.svc, t.getAttribute("data-toggle")).active = t.checked; toast(t.checked ? "Now visible." : "Hidden from site.");
+    });
+  });
+
+  // ================= MEMBERS =================
+  function loadMembers() {
+    AT.sb.from("profiles").select("*").order("created_at", { ascending: false }).limit(2000).then(function (r) {
+      if (fail(r)) return; DATA.mem = r.data; drawMembers();
+    });
+  }
+  function drawMembers() {
+    var s = $("memSearch").value.trim().toLowerCase();
+    var rows = DATA.mem.filter(function (m) { return !s || ((m.full_name || "") + " " + m.email + " " + (m.phone || "")).toLowerCase().indexOf(s) > -1; });
+    $("memRows").innerHTML = rows.length ? rows.slice(0, 300).map(function (m) {
+      return '<tr><td>' + who(m) + (m.is_admin ? ' <span class="st st-completed">admin</span>' : '') + '</td><td>' + esc(m.phone || "") + '</td><td>' +
+        '<select data-tier="' + m.id + '">' + ["user", "reseller", "distributor"].map(function (t) { return '<option' + (t === m.tier ? " selected" : "") + '>' + t + '</option>'; }).join("") + '</select></td>' +
+        '<td><b>' + money(m.balance) + '</b></td><td>' + new Date(m.created_at).toLocaleDateString() + '</td>' +
+        '<td style="white-space:nowrap"><button class="btn btn-primary btn-sm" data-credit="' + m.id + '">Add credit</button> <button class="btn btn-ghost btn-sm" data-hist="' + m.id + '">History</button></td></tr>';
+    }).join("") : '<tr><td colspan="6">No members.</td></tr>';
+  }
+  $("memSearch").addEventListener("input", drawMembers);
+  $("memReload").addEventListener("click", loadMembers);
+
+  $("memRows").addEventListener("change", function (e) {
+    var t = e.target.closest("[data-tier]"); if (!t) return;
+    AT.sb.rpc("admin_set_tier", { p_user: t.getAttribute("data-tier"), p_tier: t.value }).then(function (r) {
+      if (fail(r)) { loadMembers(); return; } byId(DATA.mem, t.getAttribute("data-tier")).tier = t.value; toast("Tier updated.");
+    });
+  });
+  $("memRows").addEventListener("click", function (e) {
+    var c = e.target.closest("[data-credit]"), h = e.target.closest("[data-hist]");
+    if (c) {
+      var m = byId(DATA.mem, c.getAttribute("data-credit"));
+      openModal('<h3 style="margin-top:0">Add credit</h3><div class="kv"><b>Member</b>' + esc(m.email) + '</div><div class="kv"><b>Balance</b>' + money(m.balance) + ' USD</div>' +
+        '<form class="form" id="credForm"><label>Amount (USD) - use a negative number to deduct</label><input name="amt" type="number" step="0.01" required>' +
+        '<label>Note</label><input name="note" maxlength="500" placeholder="e.g. Manual top-up, M-Pesa ref ABC123">' +
+        '<button class="btn btn-primary" style="width:100%;margin-top:14px">Apply</button></form>');
+      $("credForm").addEventListener("submit", function (ev) {
+        ev.preventDefault(); var f = ev.target, amt = Number(f.amt.value);
+        if (!amt) { toast("Amount cannot be zero.", true); return; }
+        if (!confirm((amt > 0 ? "Add " : "Deduct ") + money(Math.abs(amt)) + " USD " + (amt > 0 ? "to " : "from ") + m.email + "?")) return;
+        AT.sb.rpc("admin_add_credit", { p_user: m.id, p_amount: amt, p_note: f.note.value.trim() || null }).then(function (r) {
+          if (fail(r)) return; toast("New balance: " + money(r.data) + " USD"); closeModal(); loadMembers();
+        });
+      });
+    }
+    if (h) {
+      var mm = byId(DATA.mem, h.getAttribute("data-hist"));
+      openModal('<h3 style="margin-top:0">Credit history</h3><div class="muted">' + esc(mm.email) + '</div><div id="histBox">Loading…</div>');
+      AT.sb.from("credit_ledger").select("*").eq("user_id", mm.id).order("created_at", { ascending: false }).limit(50).then(function (r) {
+        if (r.error) { $("histBox").textContent = r.error.message; return; }
+        $("histBox").innerHTML = '<div class="tblwrap"><table class="tbl"><thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Balance</th><th>Note</th></tr></thead><tbody>' +
+          (r.data.length ? r.data.map(function (l) {
+            return '<tr><td>' + when(l.created_at) + '</td><td>' + esc(l.kind) + '</td><td style="color:' + (l.amount < 0 ? "#b91c1c" : "#047857") + '">' + (l.amount > 0 ? "+" : "") + money(l.amount) +
+              '</td><td>' + money(l.balance_after) + '</td><td>' + esc(l.note || "") + '</td></tr>';
+          }).join("") : '<tr><td colspan="5">No activity.</td></tr>') + '</tbody></table></div>';
+      });
+    }
+  });
+})();
+</script>
+</body>
+</html>
