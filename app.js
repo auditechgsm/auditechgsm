@@ -87,7 +87,8 @@
     SVC[s.id] = s;
     var initials = s.name.split(" ").slice(0, 2).map(function (w) { return w[0]; }).join("").toUpperCase();
     var p = Number(s.price), shown = window.AT ? AT.price(p) : p;
-    var priceTxt = p > 0 ? shown + ' USD' + (shown < p ? ' <s style="opacity:.6">' + p + '</s>' : '') : 'Price on request';
+    var unit = s.unit_based ? ' / credit' : '';
+    var priceTxt = p > 0 ? shown + ' USD' + unit + (shown < p ? ' <s style="opacity:.6">' + p + '</s>' : '') : 'Price on request';
     var thumb = s.logo_url ? '<div class="thumb logo"><img src="' + esc(s.logo_url) + '" alt="" loading="lazy"></div>' : '<div class="thumb">' + esc(initials) + '</div>';
     return '<a class="svc" href="#" data-order="' + esc(s.id) + '">' + thumb + '<div><div class="t">' + esc(s.name) + '</div>' +
       '<span class="badge b-price">' + priceTxt + '</span><span class="badge b-time">' + esc(s.delivery || "Instant") + '</span></div></a>';
@@ -107,8 +108,7 @@
       var rows = ROWS.filter(function (r) { return r.category === cat; });
       list.innerHTML = rows.length ? rows.map(card).join("")
         : '<p class="empty">Nothing here yet. The admin adds items from the panel.</p>';
-      var f = document.getElementById("searchForm");
-      if (f && f.q.value) f.dispatchEvent(new Event("submit"));
+      applyFilter();
     }
     if (recent) {
       var pool = ROWS.filter(function (r) { return r.category === "rent" || r.category === "activation"; });
@@ -129,19 +129,79 @@
     }).catch(function (e) { console.error(e); ROWS = staticRows(); render(); });
   }
 
-  // ---- Search (per-page filter, or jump to IMEI Service from Home) ----
+  // ---- Search: filters as the user types ----
   var form = document.getElementById("searchForm");
+  var noMatch = null;
+  var CAT_PAGE = { rent: "tool-rents.html", activation: "activation.html", imei: "imei.html", mdm: "mdm.html", anticrack: "anti-crack.html" };
+
+  function tokens(q) { return q.toLowerCase().split(/\s+/).filter(Boolean); }
+  function matches(name, toks) {
+    var n = name.toLowerCase();
+    for (var i = 0; i < toks.length; i++) if (n.indexOf(toks[i]) === -1) return false;
+    return true;
+  }
+
+  // Category pages: show/hide the cards already on the page (every word must match)
+  function applyFilter() {
+    if (!form || !list) return;
+    var toks = tokens(form.q.value), shown = 0, cards = list.querySelectorAll(".svc");
+    cards.forEach(function (el) {
+      var t = el.querySelector(".t");
+      var ok = !toks.length || matches(t ? t.textContent : el.textContent, toks);
+      el.style.display = ok ? "" : "none";
+      if (ok) shown++;
+    });
+    if (!noMatch) {
+      noMatch = document.createElement("p");
+      noMatch.className = "empty";
+      list.parentNode.insertBefore(noMatch, list.nextSibling);
+    }
+    var hasCards = cards.length > 0;
+    noMatch.style.display = toks.length && hasCards && !shown ? "" : "none";
+    noMatch.textContent = 'No services match "' + form.q.value.trim() + '".';
+  }
+
+  // Home page: live dropdown of the best matches across ALL categories
+  var drop = null;
+  function homeDropdown() {
+    if (!form || list) return;
+    var toks = tokens(form.q.value);
+    if (!drop) {
+      drop = document.createElement("div");
+      drop.className = "sresults";
+      form.appendChild(drop);
+    }
+    if (!toks.length) { drop.style.display = "none"; drop.innerHTML = ""; return; }
+    var hits = ROWS.filter(function (r) { return matches(r.name, toks); });
+    SVC = {};
+    drop.innerHTML = hits.length
+      ? hits.slice(0, 8).map(card).join("") +
+        (hits.length > 8 ? '<div class="more">' + (hits.length - 8) + ' more - press Enter to see them in their category</div>' : "")
+      : '<div class="more">No services match "' + esc(form.q.value.trim()) + '".</div>';
+    drop.style.display = "block";
+  }
+
   if (form) {
+    form.q.setAttribute("autocomplete", "off");
+    form.q.addEventListener("input", function () { applyFilter(); homeDropdown(); });
     form.addEventListener("submit", function (e) {
       e.preventDefault();
-      var q = form.q.value.toLowerCase();
-      if (!list) { location.href = "imei.html?q=" + encodeURIComponent(q); return; }
-      list.querySelectorAll(".svc").forEach(function (el) {
-        el.style.display = el.textContent.toLowerCase().indexOf(q) > -1 ? "" : "none";
-      });
+      var q = form.q.value.trim();
+      if (!list) {
+        // Home: jump to the category of the best match (falls back to IMEI)
+        var toks = tokens(q), first = toks.length ? ROWS.filter(function (r) { return matches(r.name, toks); })[0] : null;
+        location.href = (first && CAT_PAGE[first.category] || "imei.html") + "?q=" + encodeURIComponent(q);
+        return;
+      }
+      applyFilter();
     });
+    // close the home dropdown when clicking elsewhere
+    document.addEventListener("click", function (e) {
+      if (drop && !e.target.closest("#searchForm")) drop.style.display = "none";
+    });
+    form.q.addEventListener("focus", function () { homeDropdown(); });
     var pre = new URLSearchParams(location.search).get("q");
-    if (pre && list) { form.q.value = pre; form.dispatchEvent(new Event("submit")); }
+    if (pre && list) { form.q.value = pre; applyFilter(); }
   }
 
   // ---- Modals ----
@@ -211,25 +271,77 @@
     if (!AT.profile) { document.getElementById("auth").classList.add("open"); setMode("login"); authMsg("Please log in to place an order.", true); return; }
     var base = Number(s.price);
     if (base <= 0) { body.innerHTML = '<p><b>' + esc(s.name) + '</b></p><p>This service is priced on request. Contact us on WhatsApp or Telegram (see footer) for a quote.</p>'; modal.classList.add("open"); return; }
-    var price = AT.price(base), bal = Number(AT.profile.balance), short = bal < price;
+
+    var unitBased = !!s.unit_based, minQty = Math.max(1, parseInt(s.min_qty, 10) || 1), bal = Number(AT.profile.balance);
+    var unitPrice = AT.price(base);
+
     body.innerHTML = '<p style="margin:0 0 8px"><b>' + esc(s.name) + '</b></p>' +
-      '<p style="margin:0 0 6px">Price: <b>' + AT.money(price) + ' USD</b> &nbsp; Delivery: ' + esc(s.delivery) + '</p>' +
+      '<p style="margin:0 0 6px">' + (unitBased ? 'Price per credit: <b>' + AT.money(unitPrice) + ' USD</b>' : 'Price: <b>' + AT.money(unitPrice) + ' USD</b>') +
+      ' &nbsp; Delivery: ' + esc(s.delivery) + '</p>' +
       '<p style="margin:0 0 10px">Your balance: <b>' + AT.money(bal) + ' USD</b></p>' +
-      (short ? '<div class="msg">Not enough credit. <a href="add-credit.html" style="text-decoration:underline">Add credit</a> first.</div>' :
-        '<form class="form" id="orderForm"><label>IMEI / Serial / Username / Notes</label>' +
-        '<textarea name="details" rows="3" maxlength="2000" placeholder="Enter the details this service needs"></textarea>' +
-        '<div class="msg" id="orderMsg"></div>' +
-        '<button class="btn btn-primary" style="width:100%;margin-top:14px">Confirm &amp; pay ' + AT.money(price) + ' USD</button></form>');
+      '<form class="form" id="orderForm">' +
+      (unitBased ?
+        '<label>How many credits?' + (minQty > 1 ? ' (minimum ' + minQty + ')' : '') + '</label>' +
+        '<div class="qty"><button type="button" class="btn btn-ghost" data-step="-1" aria-label="Less">−</button>' +
+        '<input name="qty" type="number" inputmode="numeric" min="' + minQty + '" max="100000" step="1" value="' + minQty + '" required>' +
+        '<button type="button" class="btn btn-ghost" data-step="1" aria-label="More">+</button></div>' +
+        '<div class="qtyquick">' + [minQty, 10, 25, 50, 100].filter(function (n, i, a) { return n >= minQty && a.indexOf(n) === i; }).map(function (n) {
+          return '<button type="button" class="btn btn-ghost btn-sm" data-qty="' + n + '">' + n + '</button>'; }).join("") + '</div>' +
+        '<div class="totalbox">Total: <b id="orderTotal"></b> USD <span id="orderLeft"></span></div>' : '') +
+      '<label>IMEI / Serial / Username / Notes</label>' +
+      '<textarea name="details" rows="3" maxlength="2000" placeholder="Enter the details this service needs"></textarea>' +
+      '<div class="msg" id="orderMsg"></div>' +
+      '<button class="btn btn-primary" id="orderBtn" style="width:100%;margin-top:14px"></button></form>';
     modal.classList.add("open");
-    var form = document.getElementById("orderForm");
-    if (form) form.addEventListener("submit", function (e) {
+
+    var form = document.getElementById("orderForm"), btn = document.getElementById("orderBtn"), msg = document.getElementById("orderMsg");
+
+    // Reads the quantity box; returns null if it is empty / not a whole number / below the minimum
+    function readQty() {
+      if (!unitBased) return 1;
+      var raw = form.qty.value.trim();
+      if (!/^\d+$/.test(raw)) return null;
+      var n = parseInt(raw, 10);
+      return n >= minQty && n <= 100000 ? n : null;
+    }
+    function refresh() {
+      var q = readQty();
+      var total = q == null ? null : AT.total(base, q);
+      if (unitBased) {
+        document.getElementById("orderTotal").textContent = total == null ? "-" : AT.money(total);
+        document.getElementById("orderLeft").textContent = total != null && total <= bal ? "(balance after: " + AT.money(bal - total) + ")" : "";
+      }
+      msg.className = "msg";
+      if (q == null) { msg.textContent = "Enter a whole number" + (minQty > 1 ? " of at least " + minQty : "") + "."; btn.disabled = true; btn.textContent = "Enter quantity"; return; }
+      if (total > bal) {
+        msg.innerHTML = 'Not enough credit (need ' + AT.money(total) + ' USD). <a href="add-credit.html" style="text-decoration:underline">Add credit</a> first.';
+        btn.disabled = true; btn.textContent = "Not enough credit"; return;
+      }
+      msg.textContent = ""; btn.disabled = false;
+      btn.innerHTML = 'Confirm &amp; pay ' + AT.money(total) + ' USD';
+    }
+    if (unitBased) {
+      form.qty.addEventListener("input", refresh);
+      form.addEventListener("click", function (e) {
+        var st = e.target.closest("[data-step]"), qk = e.target.closest("[data-qty]");
+        if (!st && !qk) return;
+        var cur = readQty(); if (cur == null) cur = minQty;
+        form.qty.value = qk ? qk.getAttribute("data-qty") : Math.min(100000, Math.max(minQty, cur + Number(st.getAttribute("data-step"))));
+        refresh();
+      });
+    }
+    refresh();
+
+    form.addEventListener("submit", function (e) {
       e.preventDefault();
-      var b = form.querySelector("button"), m = document.getElementById("orderMsg");
-      b.disabled = true; m.className = "msg ok"; m.textContent = "Placing order…";
-      AT.sb.rpc("place_order", { p_service_id: s.id, p_details: form.details.value.trim() }).then(function (r) {
-        if (r.error) { b.disabled = false; m.className = "msg"; m.textContent = r.error.message; return; }
+      var q = readQty(); if (q == null) { refresh(); return; }
+      btn.disabled = true; msg.className = "msg ok"; msg.textContent = "Placing order…";
+      var args = { p_service_id: s.id, p_details: form.details.value.trim() };
+      if (unitBased) args.p_qty = q;   // normal services keep the old call shape
+      AT.sb.rpc("place_order", args).then(function (r) {
+        if (r.error) { btn.disabled = false; msg.className = "msg"; msg.textContent = r.error.message; return; }
         AT.refreshProfile().then(function () { paintHeader(); });
-        body.innerHTML = '<p>✅ Order <b>#' + esc(r.data) + '</b> placed. Track it under <a href="account.html" style="text-decoration:underline">your account</a>.</p>' +
+        body.innerHTML = '<p>✅ Order <b>#' + esc(r.data) + '</b> placed' + (unitBased ? ' (' + q + ' credits)' : '') + '. Track it under <a href="account.html" style="text-decoration:underline">your account</a>.</p>' +
           '<button class="btn btn-primary" data-close>Close</button>';
       });
     });

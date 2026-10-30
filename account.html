@@ -48,7 +48,7 @@
       var tb = document.getElementById("orderRows");
       if (r.error) { tb.innerHTML = '<tr><td colspan="6">' + AT.esc(r.error.message) + '</td></tr>'; return; }
       tb.innerHTML = r.data.length ? r.data.map(function (o) {
-        return '<tr><td>' + o.id + '</td><td>' + new Date(o.created_at).toLocaleString() + '</td><td>' + AT.esc(o.service_name) +
+        return '<tr><td>' + o.id + '</td><td>' + new Date(o.created_at).toLocaleString() + '</td><td>' + AT.esc(o.service_name) + (o.qty > 1 ? ' <b>x' + o.qty + '</b>' : '') +
           '</td><td>' + AT.money(o.price) + '</td><td><span class="st st-' + o.status + '">' + o.status + '</span></td><td style="white-space:pre-wrap">' +
           AT.esc(o.admin_response || '') + '</td></tr>';
       }).join("") : '<tr><td colspan="6">No orders yet.</td></tr>';

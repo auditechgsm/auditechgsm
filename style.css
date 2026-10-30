@@ -116,3 +116,16 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:700px){.row2{grid-template-columns:1fr}.acct .btn{padding:6px 8px}header.site .cur{display:none}}
 @media(max-width:700px){.hero h1{font-size:26px}.bar{gap:8px}.logo{font-size:18px}}
+
+/* Live search dropdown (home) */
+.search{position:relative}
+.sresults{display:none;position:absolute;top:100%;left:0;right:0;z-index:60;background:#fff;border:1px solid var(--line);border-radius:0 0 8px 8px;box-shadow:0 10px 24px rgba(0,0,0,.18);max-height:360px;overflow:auto;padding:4px 10px;text-align:left}
+.sresults .svc{border-bottom:1px dashed var(--line)}
+.sresults .more{padding:10px 4px;font-size:13px;color:var(--muted)}
+/* Quantity picker in the order popup */
+.qty{display:flex;gap:6px;align-items:stretch}
+.qty input{text-align:center;font-size:16px;font-weight:700}
+.qty .btn{padding:0 16px;font-size:18px}
+.qtyquick{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.totalbox{margin:12px 0 2px;padding:10px 12px;background:#f1f5f9;border-radius:6px;font-size:15px}
+.totalbox span{font-size:12px;color:var(--muted);margin-left:6px}

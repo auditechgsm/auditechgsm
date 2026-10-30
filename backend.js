@@ -31,6 +31,12 @@
     var pct = AT.discounts[(AT.profile && AT.profile.tier) || "user"] || 0;
     return Math.round(base * (1 - pct / 100) * 100) / 100;
   };
+  // Total for quantity-based services (credits): unit price x qty, tier discount, rounded once.
+  // Mirrors place_order() in supabase/migration_quantity.sql so the preview equals the charge.
+  AT.total = function (base, qty) {
+    var pct = AT.discounts[(AT.profile && AT.profile.tier) || "user"] || 0;
+    return Math.round(base * qty * (1 - pct / 100) * 100) / 100;
+  };
   AT.onChange = function (fn) { AT.listeners.push(fn); };
   function emit() { AT.listeners.forEach(function (fn) { try { fn(); } catch (e) { console.error(e); } }); }
 

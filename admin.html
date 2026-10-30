@@ -279,7 +279,7 @@
       return (o.id + " " + o.service_name + " " + ((o.profiles && o.profiles.email) || "") + " " + ((o.profiles && o.profiles.full_name) || "")).toLowerCase().indexOf(s) > -1;
     });
     $("ordRows").innerHTML = rows.length ? rows.map(function (o) {
-      return '<tr><td>' + o.id + '</td><td>' + when(o.created_at) + '</td><td>' + who(o.profiles) + '</td><td>' + esc(o.service_name) +
+      return '<tr><td>' + o.id + '</td><td>' + when(o.created_at) + '</td><td>' + who(o.profiles) + '</td><td>' + esc(o.service_name) + (o.qty > 1 ? ' <b>x' + o.qty + '</b>' : '') +
         '</td><td>' + money(o.price) + '</td><td><span class="st st-' + o.status + '">' + o.status + '</span></td><td><button class="btn btn-primary btn-sm" data-ord="' + o.id + '">Open</button></td></tr>';
     }).join("") : '<tr><td colspan="7">Nothing here.</td></tr>';
   }
@@ -293,7 +293,7 @@
     var locked = o.status === "cancelled" || o.status === "rejected";
     openModal('<h3 style="margin-top:0">Order #' + o.id + '</h3>' +
       '<div class="kv"><b>Member</b>' + esc(o.profiles && o.profiles.email) + ' (' + esc((o.profiles && o.profiles.full_name) || "-") + ')</div>' +
-      '<div class="kv"><b>Service</b>' + esc(o.service_name) + '</div>' +
+      '<div class="kv"><b>Service</b>' + esc(o.service_name) + '</div>' + (o.qty > 1 ? '<div class="kv"><b>Quantity</b>' + o.qty + '</div>' : '') +
       '<div class="kv"><b>Charged</b>' + money(o.price) + ' USD</div>' +
       '<div class="kv"><b>Placed</b>' + when(o.created_at) + '</div>' +
       '<div class="kv"><b>Member details</b></div><div class="pre">' + esc(o.details || "(none)") + '</div>' +
@@ -324,7 +324,7 @@
     var cap = 300, shown = rows.slice(0, cap);
     $("svcCount").textContent = rows.length + " service(s)" + (rows.length > cap ? " - showing first " + cap + ", use search to narrow" : "");
     $("svcRows").innerHTML = shown.length ? shown.map(function (x) {
-      return '<tr><td>' + (x.logo_url ? '<img src="' + esc(x.logo_url) + '" alt="" style="width:36px;height:24px;object-fit:contain">' : '-') + '</td><td>' + esc(x.name) + '</td><td>' + esc(CATS[x.category] || x.category) + '</td><td>' + (Number(x.price) > 0 ? money(x.price) : '<span class="muted">on request</span>') +
+      return '<tr><td>' + (x.logo_url ? '<img src="' + esc(x.logo_url) + '" alt="" style="width:36px;height:24px;object-fit:contain">' : '-') + '</td><td>' + esc(x.name) + '</td><td>' + esc(CATS[x.category] || x.category) + '</td><td>' + (Number(x.price) > 0 ? money(x.price) + (x.unit_based ? ' <span class="muted">/ credit</span>' : '') : '<span class="muted">on request</span>') +
         '</td><td>' + esc(x.delivery) + '</td><td><input type="checkbox" data-toggle="' + x.id + '"' + (x.active ? " checked" : "") + '></td>' +
         '<td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" data-edit="' + x.id + '">Edit</button> <button class="btn btn-red btn-sm" data-del="' + x.id + '">Delete</button></td></tr>';
     }).join("") : '<tr><td colspan="7">No services.</td></tr>';
@@ -376,14 +376,18 @@
       '<div class="row2"><div><label>Category</label><select name="category">' +
       Object.keys(CATS).map(function (k) { return '<option value="' + k + '"' + (k === x.category ? " selected" : "") + '>' + CATS[k] + '</option>'; }).join("") + '</select></div>' +
       '<div><label>Price (USD, 0 = on request)</label><input name="price" type="number" step="0.01" min="0" required value="' + esc(x.price) + '"></div></div>' +
+      '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="unit" style="width:auto"' + (x.unit_based ? " checked" : "") + '> Sold per credit (customer picks the quantity; price above = price of ONE credit)</label>' +
+      '<div id="minQtyRow" style="' + (x.unit_based ? '' : 'display:none') + '"><label>Minimum quantity</label><input name="minqty" type="number" min="1" step="1" value="' + esc(x.min_qty || 1) + '"></div>' +
       '<label>Delivery time</label><input name="delivery" maxlength="60" value="' + esc(x.delivery) + '">' +
       '<label>Logo (PNG/JPG/WEBP, max 1 MB)</label>' + (x.logo_url ? '<img src="' + esc(x.logo_url) + '" alt="" style="height:40px;display:block;margin-bottom:6px"><label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" name="rmlogo" style="width:auto"> Remove current logo</label>' : '') +
       '<input name="logo" type="file" accept="image/png,image/jpeg,image/webp">' +
       '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="active" style="width:auto"' + (x.active ? " checked" : "") + '> Visible on the site</label>' +
       '<button class="btn btn-primary" style="width:100%;margin-top:14px">Save</button></form>');
+    $("svcForm").unit.addEventListener("change", function () { $("minQtyRow").style.display = this.checked ? "" : "none"; });
     $("svcForm").addEventListener("submit", function (e) {
       e.preventDefault(); var f = e.target;
-      var row = { name: f.name.value.trim(), category: f.category.value, price: Number(f.price.value), delivery: f.delivery.value.trim() || "Instant", active: f.active.checked };
+      var row = { name: f.name.value.trim(), category: f.category.value, price: Number(f.price.value), delivery: f.delivery.value.trim() || "Instant", active: f.active.checked,
+        unit_based: f.unit.checked, min_qty: Math.max(1, parseInt(f.minqty.value, 10) || 1) };
       uploadLogo(f.logo.files[0]).then(function (url) {
         if (url) row.logo_url = url; else if (f.rmlogo && f.rmlogo.checked) row.logo_url = null;
         return isNew ? AT.sb.from("services").insert(row) : AT.sb.from("services").update(row).eq("id", x.id);
